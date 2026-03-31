@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Flask on EC2 | Docker Deployment</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0b0f1a;
+      --surface: #111827;
+      --border: #1e2d40;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --card: #0f1a2b;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 60px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 4px;
+      margin-bottom: 24px;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .badge .dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 12px;
+      animation: slideUp 0.6s ease 0.1s both;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 1rem;
+      margin-bottom: 48px;
+      font-family: 'JetBrains Mono', monospace;
+      animation: slideUp 0.6s ease 0.2s both;
+    }
+
+    /* Stack pills */
+    .stack {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 48px;
+      animation: slideUp 0.6s ease 0.3s both;
+    }
+
+    .pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .pill:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .pill .icon { font-size: 16px; }
+
+    /* Cards grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+      animation: slideUp 0.6s ease 0.4s both;
+    }
+
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: rgba(0,212,255,0.3); }
+
+    .card-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .card-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    /* Info block */
+    .info-block {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      margin-bottom: 32px;
+      animation: slideUp 0.6s ease 0.5s both;
+    }
+
+    .info-block h2 {
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .info-row:last-child { border-bottom: none; }
+    .info-row .key { color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+    .info-row .val { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+    .info-row .val.green { color: var(--green); }
+
+    /* Architecture diagram */
+    .arch {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px;
+      animation: slideUp 0.6s ease 0.6s both;
+    }
+
+    .arch h2 {
+      font-size: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 24px;
+    }
+
+    .flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .node {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 20px;
+      text-align: center;
+      min-width: 110px;
+    }
+
+    .node .n-icon { font-size: 22px; margin-bottom: 4px; }
+    .node .n-label { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+    .node .n-name { font-size: 13px; font-weight: 700; color: var(--text); }
+
+    .arrow {
+      color: var(--accent);
+      font-size: 20px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="badge">
+      <span class="dot"></span>
+      LIVE · Dockerized Flask on EC2
+    </div>
+
+    <h1>Flask App <span>Deployed</span><br>on AWS EC2</h1>
+    <p class="subtitle">$ docker run -p 5000:5000 flask-ec2-app</p>
+
+    <div class="stack">
+      <div class="pill"><span class="icon">🐍</span> Python 3.11</div>
+      <div class="pill"><span class="icon">⚗️</span> Flask</div>
+      <div class="pill"><span class="icon">🐳</span> Docker</div>
+      <div class="pill"><span class="icon">☁️</span> AWS EC2</div>
+      <div class="pill"><span class="icon">🔀</span> Nginx (reverse proxy)</div>
+      <div class="pill"><span class="icon">🔒</span> Gunicorn (WSGI)</div>
+    </div>
+
+    <div class="grid" id="cards">
+      <div class="card">
+        <div class="card-label">Container ID</div>
+        <div class="card-value" id="container-id">Loading…</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Hostname</div>
+        <div class="card-value" id="hostname">Loading…</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Python Version</div>
+        <div class="card-value" id="python-ver">Loading…</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Last Fetched</div>
+        <div class="card-value" id="timestamp">Loading…</div>
+      </div>
+    </div>
+
+    <div class="info-block">
+      <h2>// System Status</h2>
+      <div class="info-row">
+        <span class="key">app_status</span>
+        <span class="val green">● running</span>
+      </div>
+      <div class="info-row">
+        <span class="key">environment</span>
+        <span class="val" id="env">Loading…</span>
+      </div>
+      <div class="info-row">
+        <span class="key">platform</span>
+        <span class="val" id="platform">Loading…</span>
+      </div>
+      <div class="info-row">
+        <span class="key">health_endpoint</span>
+        <span class="val green">/health → 200 OK</span>
+      </div>
+      <div class="info-row">
+        <span class="key">api_endpoint</span>
+        <span class="val">/api/info → JSON</span>
+      </div>
+    </div>
+
+    <div class="arch">
+      <h2>// Deployment Architecture</h2>
+      <div class="flow">
+        <div class="node">
+          <div class="n-icon">🌐</div>
+          <div class="n-label">Internet</div>
+          <div class="n-name">Browser</div>
+        </div>
+        <div class="arrow">──▶</div>
+        <div class="node">
+          <div class="n-icon">🔀</div>
+          <div class="n-label">Port 80/443</div>
+          <div class="n-name">Nginx</div>
+        </div>
+        <div class="arrow">──▶</div>
+        <div class="node">
+          <div class="n-icon">🐳</div>
+          <div class="n-label">Docker</div>
+          <div class="n-name">Container</div>
+        </div>
+        <div class="arrow">──▶</div>
+        <div class="node">
+          <div class="n-icon">⚗️</div>
+          <div class="n-label">Port 5000</div>
+          <div class="n-name">Flask</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    fetch("/api/info")
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById("container-id").textContent = d.container_id;
+        document.getElementById("hostname").textContent = d.hostname;
+        document.getElementById("python-ver").textContent = "Python " + d.python_version;
+        document.getElementById("timestamp").textContent = new Date(d.timestamp).toLocaleTimeString();
+        document.getElementById("env").textContent = d.environment;
+        document.getElementById("platform").textContent = d.platform;
+      })
+      .catch(() => {
+        ["container-id","hostname","python-ver","timestamp","env","platform"]
+          .forEach(id => { const el = document.getElementById(id); if(el) el.textContent = "N/A"; });
+      });
+  </script>
+</body>
+</html>
